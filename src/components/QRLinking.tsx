@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 import SecurePaySDK, { TrustedDevice } from '@/sdk/SecurePaySDK';
 import { QrCode, Scan, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,12 +18,10 @@ const QRLinking = () => {
   const [manualCode, setManualCode] = useState('');
 
   useEffect(() => {
-    // Check if device is registered first
     const registered = SecurePaySDK.isDeviceRegistered();
     setIsRegistered(registered);
     
     if (registered) {
-      // Generate new QR code data
       generateNewQRCode();
     }
   }, []);
@@ -44,7 +41,6 @@ const QRLinking = () => {
   };
 
   const handleScanQRCode = () => {
-    // In a real app, this would open the camera
     setScanMode(!scanMode);
   };
 
@@ -94,7 +90,7 @@ const QRLinking = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert variant="warning">
+          <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Device Not Registered</AlertTitle>
             <AlertDescription>
@@ -128,7 +124,7 @@ const QRLinking = () => {
           <CardContent className="flex flex-col items-center">
             <div className="bg-white p-4 rounded-md border mb-4">
               {qrData ? (
-                <QRCode value={qrData} size={200} />
+                <QRCodeSVG value={qrData} size={200} />
               ) : (
                 <div className="h-[200px] w-[200px] flex items-center justify-center bg-gray-100">
                   <p className="text-gray-500">QR code not generated</p>

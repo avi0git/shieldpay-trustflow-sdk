@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import SecurePaySDK, { TrustedDevice } from '@/sdk/SecurePaySDK';
-import { Laptop, Smartphone, Trash2, RefreshCw, DevicesPlugler } from 'lucide-react';
+import { Laptop, Smartphone, Trash2, RefreshCw, Devices } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -73,7 +72,7 @@ const DeviceList = () => {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <DevicesPlugler className="h-5 w-5 text-primary" />
+            <Devices className="h-5 w-5 text-primary" />
             <CardTitle>Trusted Devices</CardTitle>
           </div>
           <CardDescription>
@@ -97,7 +96,7 @@ const DeviceList = () => {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <DevicesPlugler className="h-5 w-5 text-primary" />
+            <Devices className="h-5 w-5 text-primary" />
             <CardTitle>Trusted Devices</CardTitle>
           </div>
           <CardDescription>

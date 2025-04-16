@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +19,6 @@ const TransactionSimulator = () => {
 
   const simulateTransaction = () => {
     try {
-      // Create a transaction object
       const transaction: Transaction = {
         id: `TXN-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
         amount: parseFloat(amount),
@@ -29,11 +27,9 @@ const TransactionSimulator = () => {
         recipient,
       };
 
-      // Verify the transaction
       const result = SecurePaySDK.verifyTransaction(transaction);
       setVerificationResult(result);
 
-      // Show toast notification
       toast({
         title: result.verified ? "Transaction Verified" : "Transaction Blocked",
         description: result.reason,
@@ -62,7 +58,7 @@ const TransactionSimulator = () => {
       </CardHeader>
       <CardContent>
         {!isRegistered && (
-          <Alert className="mb-6" variant="warning">
+          <Alert className="mb-6" variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Device Not Registered</AlertTitle>
             <AlertDescription>
