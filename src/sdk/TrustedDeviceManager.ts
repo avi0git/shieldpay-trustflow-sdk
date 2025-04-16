@@ -1,3 +1,4 @@
+
 /**
  * TrustedDeviceManager.ts
  * Manages the list of trusted devices and verifies transactions
@@ -9,11 +10,12 @@ export class TrustedDeviceManager {
   private static readonly TRUSTED_DEVICES_KEY = 'trusted_devices';
   private static readonly CURRENT_DEVICE_KEY = 'current_device_registered';
   private static readonly HIGH_VALUE_THRESHOLD = 10000; // Threshold for high-value transactions
+  private static readonly VERIFICATION_CODE_KEY = 'verification_code';
   
   /**
    * Register the current device as trusted
    */
-  public static registerCurrentDevice(deviceName: string): TrustedDevice {
+  public static registerCurrentDevice(deviceName: string, phoneNumber?: string): TrustedDevice {
     const deviceInfo = DeviceFingerprint.generateFingerprint();
     
     const trustedDevice: TrustedDevice = {
@@ -21,6 +23,7 @@ export class TrustedDeviceManager {
       name: deviceName || deviceInfo.deviceName,
       isCurrentDevice: true,
       lastVerified: new Date().toISOString(),
+      phoneNumber: phoneNumber || '',
     };
     
     // Save current device status
@@ -47,12 +50,39 @@ export class TrustedDeviceManager {
       name: `${qrData.deviceInfo.platform} Device`,
       isCurrentDevice: false,
       lastVerified: new Date().toISOString(),
+      phoneNumber: '',
     };
     
     this.addTrustedDevice(trustedDevice);
     console.log("Device linked successfully:", trustedDevice);
     
     return trustedDevice;
+  }
+  
+  /**
+   * Generate a verification code for high-value transactions
+   */
+  public static generateVerificationCode(): string {
+    // Generate a random 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Store the code temporarily
+    localStorage.setItem(this.VERIFICATION_CODE_KEY, code);
+    return code;
+  }
+  
+  /**
+   * Verify the user-entered code against the stored code
+   */
+  public static verifyCode(userEnteredCode: string): boolean {
+    const storedCode = localStorage.getItem(this.VERIFICATION_CODE_KEY);
+    if (!storedCode) return false;
+    
+    const isValid = storedCode === userEnteredCode;
+    
+    // Clear the code after verification attempt
+    localStorage.removeItem(this.VERIFICATION_CODE_KEY);
+    
+    return isValid;
   }
   
   /**
@@ -86,6 +116,15 @@ export class TrustedDeviceManager {
       console.error("Failed to parse trusted devices:", error);
       return [];
     }
+  }
+  
+  /**
+   * Get current device
+   */
+  public static getCurrentDevice(): TrustedDevice | null {
+    const currentDeviceId = DeviceFingerprint.getDeviceId();
+    const trustedDevices = this.getTrustedDevices();
+    return trustedDevices.find(device => device.deviceId === currentDeviceId) || null;
   }
   
   /**
@@ -183,6 +222,7 @@ export interface TrustedDevice extends DeviceInfo {
   name: string;
   isCurrentDevice: boolean;
   lastVerified: string;
+  phoneNumber?: string;
 }
 
 export interface Transaction {

@@ -1,13 +1,14 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import SecurePaySDK, { Transaction, TransactionVerificationResult } from '@/sdk/SecurePaySDK';
-import { CreditCard, ShieldCheck, ShieldAlert, AlertTriangle, Phone } from 'lucide-react';
+import { CreditCard, ShieldCheck, ShieldAlert, AlertTriangle, Phone, Lock } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const TransactionSimulator = () => {
@@ -18,6 +19,14 @@ const TransactionSimulator = () => {
   const [verificationResult, setVerificationResult] = useState<TransactionVerificationResult | null>(null);
   const [isRegistered, setIsRegistered] = useState(SecurePaySDK.isDeviceRegistered());
   const [isCallVerified, setIsCallVerified] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [showVerificationInput, setShowVerificationInput] = useState(false);
+  const [currentDevice, setCurrentDevice] = useState<any>(null);
+
+  useEffect(() => {
+    const device = SecurePaySDK.getCurrentDevice();
+    setCurrentDevice(device);
+  }, []);
 
   const simulateTransaction = () => {
     try {
@@ -56,13 +65,58 @@ const TransactionSimulator = () => {
     }
   };
 
-  const completeCallVerification = () => {
-    setIsCallVerified(true);
+  const initiateCallVerification = () => {
+    if (!currentDevice?.phoneNumber) {
+      toast({
+        variant: "destructive",
+        title: "No Phone Number",
+        description: "You need to register a phone number with this device first.",
+      });
+      return;
+    }
+
+    const code = SecurePaySDK.generateVerificationCode();
+    console.log(`Verification code generated: ${code}`); // In real app, this would be sent via API
+
     toast({
-      title: "Call Verification Complete",
-      description: "The transaction has been verified via phone call.",
-      variant: "default",
+      title: "Verification Code Sent",
+      description: `A verification code has been sent to your phone ${currentDevice.phoneNumber.substring(0, 3)}***${currentDevice.phoneNumber.slice(-4)}`,
     });
+
+    setShowVerificationInput(true);
+  };
+
+  const verifyCode = () => {
+    if (verificationCode.length !== 6) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Code",
+        description: "Please enter a 6-digit verification code.",
+      });
+      return;
+    }
+
+    const isValid = SecurePaySDK.verifyCode(verificationCode);
+    
+    if (isValid) {
+      setIsCallVerified(true);
+      setShowVerificationInput(false);
+      toast({
+        title: "Verification Successful",
+        description: "Your transaction has been approved.",
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Invalid Code",
+        description: "The verification code is incorrect. Please try again.",
+      });
+    }
+  };
+
+  const cancelVerification = () => {
+    setShowVerificationInput(false);
+    setVerificationCode("");
   };
 
   return (
@@ -83,6 +137,16 @@ const TransactionSimulator = () => {
             <AlertTitle>Device Not Registered</AlertTitle>
             <AlertDescription>
               This device is not registered as trusted. Transactions will be flagged as suspicious.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {isRegistered && !currentDevice?.phoneNumber && (
+          <Alert className="mb-6" variant="destructive">
+            <Phone className="h-4 w-4" />
+            <AlertTitle>Phone Number Missing</AlertTitle>
+            <AlertDescription>
+              You need to register a phone number with this device for high-value transaction verification.
             </AlertDescription>
           </Alert>
         )}
@@ -124,7 +188,42 @@ const TransactionSimulator = () => {
             />
           </div>
 
-          {verificationResult && (
+          {showVerificationInput && (
+            <div className="mt-6 p-4 rounded-lg border bg-yellow-50 border-yellow-200 space-y-4">
+              <div className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-yellow-600" />
+                <h3 className="font-medium text-yellow-800">Enter Verification Code</h3>
+              </div>
+              <p className="text-sm text-yellow-700">
+                A 6-digit verification code has been sent to your registered phone number.
+                Please enter it below to verify this transaction.
+              </p>
+              
+              <div className="flex justify-center py-2">
+                <InputOTP maxLength={6} value={verificationCode} onChange={setVerificationCode}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={cancelVerification}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={verifyCode}>
+                  Verify Code
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {verificationResult && !showVerificationInput && (
             <div className={`mt-6 p-4 rounded-lg border ${
               verificationResult.requiresCallVerification && !isCallVerified 
                 ? "bg-yellow-50 border-yellow-200"
@@ -174,10 +273,11 @@ const TransactionSimulator = () => {
                     <Button 
                       className="mt-3 bg-yellow-500 hover:bg-yellow-600" 
                       size="sm"
-                      onClick={completeCallVerification}
+                      onClick={initiateCallVerification}
+                      disabled={!currentDevice?.phoneNumber}
                     >
                       <Phone className="h-4 w-4 mr-2" />
-                      Complete Call Verification
+                      Receive Verification Code
                     </Button>
                   )}
                 </div>
@@ -187,7 +287,11 @@ const TransactionSimulator = () => {
         </div>
       </CardContent>
       <CardFooter>
-        <Button className="w-full" onClick={simulateTransaction}>
+        <Button 
+          className="w-full" 
+          onClick={simulateTransaction}
+          disabled={showVerificationInput}
+        >
           Simulate Transaction
         </Button>
       </CardFooter>

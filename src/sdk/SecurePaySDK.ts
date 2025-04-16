@@ -27,8 +27,8 @@ export class SecurePaySDK {
   /**
    * Register current device as trusted
    */
-  public static registerCurrentDevice(deviceName?: string): TrustedDevice {
-    return TrustedDeviceManager.registerCurrentDevice(deviceName || 'My Device');
+  public static registerCurrentDevice(deviceName?: string, phoneNumber?: string): TrustedDevice {
+    return TrustedDeviceManager.registerCurrentDevice(deviceName || 'My Device', phoneNumber);
   }
   
   /**
@@ -36,6 +36,13 @@ export class SecurePaySDK {
    */
   public static isDeviceRegistered(): boolean {
     return TrustedDeviceManager.isCurrentDeviceRegistered();
+  }
+  
+  /**
+   * Get current device information
+   */
+  public static getCurrentDevice(): TrustedDevice | null {
+    return TrustedDeviceManager.getCurrentDevice();
   }
   
   /**
@@ -76,6 +83,20 @@ export class SecurePaySDK {
    */
   public static verifyTransaction(transaction: Transaction): TransactionVerificationResult {
     return TrustedDeviceManager.verifyTransaction(transaction);
+  }
+  
+  /**
+   * Generate verification code for high-value transactions
+   */
+  public static generateVerificationCode(): string {
+    return TrustedDeviceManager.generateVerificationCode();
+  }
+  
+  /**
+   * Verify code entered by user
+   */
+  public static verifyCode(code: string): boolean {
+    return TrustedDeviceManager.verifyCode(code);
   }
 }
 
