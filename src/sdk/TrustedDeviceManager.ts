@@ -36,7 +36,9 @@ export class TrustedDeviceManager {
    * Link a new device using QR code data
    */
   public static linkDeviceFromQR(qrData: QRCodeData): TrustedDevice | null {
+    console.log("Linking device from QR data:", qrData);
     if (!qrData || !qrData.deviceInfo) {
+      console.error("Invalid QR data for device linking");
       return null;
     }
     
@@ -48,6 +50,7 @@ export class TrustedDeviceManager {
     };
     
     this.addTrustedDevice(trustedDevice);
+    console.log("Device linked successfully:", trustedDevice);
     
     return trustedDevice;
   }
@@ -130,10 +133,15 @@ export class TrustedDeviceManager {
       localStorage.removeItem(this.CURRENT_DEVICE_KEY);
     }
     
+    // Notify that trusted devices have been updated
+    const event = new CustomEvent('trustedDevicesUpdated');
+    window.dispatchEvent(event);
+    
     return true;
   }
   
   private static addTrustedDevice(device: TrustedDevice): void {
+    console.log("Adding trusted device:", device);
     const devices = this.getTrustedDevices();
     
     // Check if device already exists, update it if it does
@@ -150,6 +158,10 @@ export class TrustedDeviceManager {
     }
     
     localStorage.setItem(this.TRUSTED_DEVICES_KEY, JSON.stringify(devices));
+    
+    // Notify that trusted devices have been updated
+    const event = new CustomEvent('trustedDevicesUpdated');
+    window.dispatchEvent(event);
   }
 }
 

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +20,7 @@ const QRLinking = () => {
   const [manualCode, setManualCode] = useState('');
   const [scanner, setScanner] = useState<QrScanner | null>(null);
   const [scannerReady, setScannerReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const registered = SecurePaySDK.isDeviceRegistered();
@@ -40,6 +41,7 @@ const QRLinking = () => {
     try {
       const newQrData = SecurePaySDK.generateQRCodeData();
       setQrData(newQrData);
+      console.log("Generated QR data:", newQrData);
     } catch (error) {
       console.error("Failed to generate QR code:", error);
       toast({
@@ -55,21 +57,25 @@ const QRLinking = () => {
     
     // Wait for the DOM to update
     setTimeout(() => {
-      const videoElement = document.getElementById('qr-video') as HTMLVideoElement;
-      if (!videoElement) {
+      if (!videoRef.current) {
         console.error("No video element found");
+        toast({
+          variant: "destructive",
+          title: "Scanner Error",
+          description: "Could not initialize camera. Please try again or use manual entry.",
+        });
+        setScanMode(false);
         return;
       }
 
       try {
+        console.log("Initializing QR scanner");
         const newScanner = new QrScanner(
-          videoElement,
+          videoRef.current,
           result => {
+            console.log("QR code scanned:", result.data);
             handleScanResult(result.data);
-            setScanMode(false);
-            if (scanner) {
-              scanner.destroy();
-            }
+            stopScanning();
           },
           {
             highlightScanRegion: true,
@@ -78,18 +84,20 @@ const QRLinking = () => {
         );
 
         setScanner(newScanner);
-        newScanner.start().then(() => {
-          setScannerReady(true);
-          console.log("Scanner started");
-        }).catch((err) => {
-          console.error("Failed to start scanner:", err);
-          toast({
-            variant: "destructive",
-            title: "Camera Access Failed",
-            description: "Could not access your camera. Please check permissions or use manual code entry.",
+        newScanner.start()
+          .then(() => {
+            console.log("Scanner started successfully");
+            setScannerReady(true);
+          })
+          .catch((err) => {
+            console.error("Failed to start scanner:", err);
+            toast({
+              variant: "destructive",
+              title: "Camera Access Failed",
+              description: "Could not access your camera. Please check permissions or use manual code entry.",
+            });
+            setScanMode(false);
           });
-          setScanMode(false);
-        });
       } catch (error) {
         console.error("QR Scanner error:", error);
         toast({
@@ -99,7 +107,7 @@ const QRLinking = () => {
         });
         setScanMode(false);
       }
-    }, 100);
+    }, 200);
   };
 
   const stopScanning = () => {
@@ -112,24 +120,27 @@ const QRLinking = () => {
   };
 
   const handleScanResult = (code: string) => {
+    console.log("Processing scanned code:", code);
     processCode(code);
   };
 
   const processCode = (code: string) => {
     try {
+      console.log("Processing QR code data:", code);
       const result = SecurePaySDK.processQRCodeData(code);
       
       if (result) {
+        console.log("Device linked successfully:", result);
         toast({
           title: "Device Linked",
           description: `${result.name} has been linked as a trusted device.`,
         });
         
         // Force refresh of trusted devices list 
-        // This will trigger any components displaying trusted devices to update
         const event = new CustomEvent('trustedDevicesUpdated');
         window.dispatchEvent(event);
       } else {
+        console.error("Invalid QR code data:", code);
         toast({
           variant: "destructive",
           title: "Invalid QR Code",
@@ -235,7 +246,7 @@ const QRLinking = () => {
               <div className="text-center">
                 <div className="bg-gray-100 rounded-md mb-4 overflow-hidden relative">
                   <video 
-                    id="qr-video" 
+                    ref={videoRef} 
                     className="w-full h-[300px] object-cover"
                   ></video>
                   {!scannerReady && (

@@ -22,6 +22,7 @@ export class QRCodeManager {
     };
     
     // In a real implementation, this data would be encrypted
+    console.log("Generated QR data object:", qrData);
     return btoa(JSON.stringify(qrData));
   }
   
@@ -30,7 +31,9 @@ export class QRCodeManager {
    */
   public static parseQRCodeData(qrData: string): QRCodeData | null {
     try {
+      console.log("Attempting to parse QR code data");
       const decoded = JSON.parse(atob(qrData));
+      console.log("Decoded QR data:", decoded);
       
       // Verify the QR code hasn't expired
       if (new Date(decoded.expiresAt) < new Date()) {
