@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SecurePaySDK, { Transaction, TransactionVerificationResult } from '@/sdk/SecurePaySDK';
-import { CreditCard, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { CreditCard, ShieldCheck, ShieldAlert, AlertTriangle, Phone } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const TransactionSimulator = () => {
@@ -16,6 +17,7 @@ const TransactionSimulator = () => {
   const [recipient, setRecipient] = useState("John Doe");
   const [verificationResult, setVerificationResult] = useState<TransactionVerificationResult | null>(null);
   const [isRegistered, setIsRegistered] = useState(SecurePaySDK.isDeviceRegistered());
+  const [isCallVerified, setIsCallVerified] = useState(false);
 
   const simulateTransaction = () => {
     try {
@@ -29,12 +31,21 @@ const TransactionSimulator = () => {
 
       const result = SecurePaySDK.verifyTransaction(transaction);
       setVerificationResult(result);
+      setIsCallVerified(false);
 
-      toast({
-        title: result.verified ? "Transaction Verified" : "Transaction Blocked",
-        description: result.reason,
-        variant: result.verified ? "default" : "destructive",
-      });
+      if (result.requiresCallVerification) {
+        toast({
+          title: "Call Verification Required",
+          description: "This high-value transaction requires phone verification.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: result.verified ? "Transaction Verified" : "Transaction Blocked",
+          description: result.reason,
+          variant: result.verified ? "default" : "destructive",
+        });
+      }
     } catch (error) {
       console.error("Transaction verification failed:", error);
       toast({
@@ -43,6 +54,15 @@ const TransactionSimulator = () => {
         description: "Failed to verify the transaction.",
       });
     }
+  };
+
+  const completeCallVerification = () => {
+    setIsCallVerified(true);
+    toast({
+      title: "Call Verification Complete",
+      description: "The transaction has been verified via phone call.",
+      variant: "default",
+    });
   };
 
   return (
@@ -106,24 +126,40 @@ const TransactionSimulator = () => {
 
           {verificationResult && (
             <div className={`mt-6 p-4 rounded-lg border ${
-              verificationResult.verified 
-                ? "bg-green-50 border-green-200" 
-                : "bg-red-50 border-red-200"
+              verificationResult.requiresCallVerification && !isCallVerified 
+                ? "bg-yellow-50 border-yellow-200"
+                : verificationResult.verified 
+                  ? "bg-green-50 border-green-200" 
+                  : "bg-red-50 border-red-200"
             }`}>
               <div className="flex items-start gap-3">
-                {verificationResult.verified ? (
+                {verificationResult.requiresCallVerification && !isCallVerified ? (
+                  <Phone className="h-6 w-6 text-yellow-600 mt-1" />
+                ) : verificationResult.verified ? (
                   <ShieldCheck className="h-6 w-6 text-green-600 mt-1" />
                 ) : (
                   <ShieldAlert className="h-6 w-6 text-red-600 mt-1" />
                 )}
                 <div>
                   <h3 className={`font-medium ${
-                    verificationResult.verified ? "text-green-800" : "text-red-800"
+                    verificationResult.requiresCallVerification && !isCallVerified
+                      ? "text-yellow-800"
+                      : verificationResult.verified 
+                        ? "text-green-800" 
+                        : "text-red-800"
                   }`}>
-                    {verificationResult.verified ? "Transaction Approved" : "Transaction Blocked"}
+                    {verificationResult.requiresCallVerification && !isCallVerified
+                      ? "Call Verification Required"
+                      : verificationResult.verified 
+                        ? "Transaction Approved" 
+                        : "Transaction Blocked"}
                   </h3>
                   <p className={
-                    verificationResult.verified ? "text-green-700" : "text-red-700"
+                    verificationResult.requiresCallVerification && !isCallVerified
+                      ? "text-yellow-700"
+                      : verificationResult.verified 
+                        ? "text-green-700" 
+                        : "text-red-700"
                   }>
                     {verificationResult.reason}
                   </p>
@@ -133,6 +169,17 @@ const TransactionSimulator = () => {
                   <p className="text-sm">
                     Recommendation: {verificationResult.recommendation}
                   </p>
+                  
+                  {verificationResult.requiresCallVerification && !isCallVerified && (
+                    <Button 
+                      className="mt-3 bg-yellow-500 hover:bg-yellow-600" 
+                      size="sm"
+                      onClick={completeCallVerification}
+                    >
+                      <Phone className="h-4 w-4 mr-2" />
+                      Complete Call Verification
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

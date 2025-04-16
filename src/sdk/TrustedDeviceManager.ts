@@ -1,4 +1,3 @@
-
 /**
  * TrustedDeviceManager.ts
  * Manages the list of trusted devices and verifies transactions
@@ -9,6 +8,7 @@ import { QRCodeData } from './QRCodeManager';
 export class TrustedDeviceManager {
   private static readonly TRUSTED_DEVICES_KEY = 'trusted_devices';
   private static readonly CURRENT_DEVICE_KEY = 'current_device_registered';
+  private static readonly HIGH_VALUE_THRESHOLD = 10000; // Threshold for high-value transactions
   
   /**
    * Register the current device as trusted
@@ -100,11 +100,24 @@ export class TrustedDeviceManager {
         riskLevel: 'high',
         reason: 'Untrusted device',
         recommendation: 'Block transaction',
+        requiresCallVerification: false,
+      };
+    }
+    
+    // Check if this is a high-value transaction
+    const isHighValueTransaction = transaction.amount >= this.HIGH_VALUE_THRESHOLD;
+    
+    if (isHighValueTransaction) {
+      return {
+        verified: true, // Device is trusted, but amount requires additional verification
+        riskLevel: 'medium',
+        reason: 'High-value transaction requires additional verification',
+        recommendation: 'Verify via phone call',
+        requiresCallVerification: true,
       };
     }
     
     // In a real implementation, we would do additional verification based on:
-    // - Transaction amount
     // - Transaction frequency
     // - Location
     // - Time of day
@@ -115,6 +128,7 @@ export class TrustedDeviceManager {
       riskLevel: 'low',
       reason: 'Trusted device',
       recommendation: 'Allow transaction',
+      requiresCallVerification: false,
     };
   }
   
@@ -184,4 +198,5 @@ export interface TransactionVerificationResult {
   riskLevel: 'low' | 'medium' | 'high';
   reason: string;
   recommendation: string;
+  requiresCallVerification: boolean;
 }
