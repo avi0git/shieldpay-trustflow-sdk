@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,10 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { QRCodeSVG } from 'qrcode.react';
 import SecurePaySDK, { TrustedDevice } from '@/sdk/SecurePaySDK';
-import { QrCode, Scan, AlertTriangle } from 'lucide-react';
+import { QrCode, Scan, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import QrScanner from 'qr-scanner';
 
 const QRLinking = () => {
   const { toast } = useToast();
@@ -16,6 +18,8 @@ const QRLinking = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [scanMode, setScanMode] = useState(false);
   const [manualCode, setManualCode] = useState('');
+  const [scanner, setScanner] = useState<QrScanner | null>(null);
+  const [scannerReady, setScannerReady] = useState(false);
 
   useEffect(() => {
     const registered = SecurePaySDK.isDeviceRegistered();
@@ -24,6 +28,12 @@ const QRLinking = () => {
     if (registered) {
       generateNewQRCode();
     }
+
+    return () => {
+      if (scanner) {
+        scanner.destroy();
+      }
+    };
   }, []);
 
   const generateNewQRCode = () => {
@@ -41,7 +51,68 @@ const QRLinking = () => {
   };
 
   const handleScanQRCode = () => {
-    setScanMode(!scanMode);
+    setScanMode(true);
+    
+    // Wait for the DOM to update
+    setTimeout(() => {
+      const videoElement = document.getElementById('qr-video') as HTMLVideoElement;
+      if (!videoElement) {
+        console.error("No video element found");
+        return;
+      }
+
+      try {
+        const newScanner = new QrScanner(
+          videoElement,
+          result => {
+            handleScanResult(result.data);
+            setScanMode(false);
+            if (scanner) {
+              scanner.destroy();
+            }
+          },
+          {
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+          }
+        );
+
+        setScanner(newScanner);
+        newScanner.start().then(() => {
+          setScannerReady(true);
+          console.log("Scanner started");
+        }).catch((err) => {
+          console.error("Failed to start scanner:", err);
+          toast({
+            variant: "destructive",
+            title: "Camera Access Failed",
+            description: "Could not access your camera. Please check permissions or use manual code entry.",
+          });
+          setScanMode(false);
+        });
+      } catch (error) {
+        console.error("QR Scanner error:", error);
+        toast({
+          variant: "destructive",
+          title: "QR Scanner Error",
+          description: "Could not initialize the QR scanner. Please try the manual entry.",
+        });
+        setScanMode(false);
+      }
+    }, 100);
+  };
+
+  const stopScanning = () => {
+    if (scanner) {
+      scanner.destroy();
+      setScanner(null);
+    }
+    setScanMode(false);
+    setScannerReady(false);
+  };
+
+  const handleScanResult = (code: string) => {
+    processCode(code);
   };
 
   const processCode = (code: string) => {
@@ -53,6 +124,11 @@ const QRLinking = () => {
           title: "Device Linked",
           description: `${result.name} has been linked as a trusted device.`,
         });
+        
+        // Force refresh of trusted devices list 
+        // This will trigger any components displaying trusted devices to update
+        const event = new CustomEvent('trustedDevicesUpdated');
+        window.dispatchEvent(event);
       } else {
         toast({
           variant: "destructive",
@@ -135,9 +211,9 @@ const QRLinking = () => {
               This QR code will expire in 5 minutes for security
             </p>
           </CardContent>
-          <CardFooter>
-            <Button onClick={generateNewQRCode} className="w-full">
-              Generate New QR Code
+          <CardFooter className="flex justify-center">
+            <Button onClick={generateNewQRCode} className="w-full flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" /> Generate New QR Code
             </Button>
           </CardFooter>
         </Card>
@@ -157,14 +233,20 @@ const QRLinking = () => {
           <CardContent>
             {scanMode ? (
               <div className="text-center">
-                <div className="bg-gray-100 h-[200px] rounded-md flex items-center justify-center mb-4">
-                  <p className="text-gray-500">
-                    [Camera Placeholder - In a real app, camera would appear here]
-                  </p>
+                <div className="bg-gray-100 rounded-md mb-4 overflow-hidden relative">
+                  <video 
+                    id="qr-video" 
+                    className="w-full h-[300px] object-cover"
+                  ></video>
+                  {!scannerReady && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white">
+                      <p>Accessing camera...</p>
+                    </div>
+                  )}
                 </div>
                 <Button 
                   variant="outline" 
-                  onClick={() => setScanMode(false)}
+                  onClick={stopScanning}
                   className="mb-4"
                 >
                   Cancel Scanning

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,13 @@ const DeviceList = () => {
     // Check if current device is registered
     const registered = SecurePaySDK.isDeviceRegistered();
     setIsRegistered(registered);
+
+    // Listen for updates from QR code scanning
+    window.addEventListener('trustedDevicesUpdated', loadDevices);
+
+    return () => {
+      window.removeEventListener('trustedDevicesUpdated', loadDevices);
+    };
   }, []);
 
   const loadDevices = () => {
