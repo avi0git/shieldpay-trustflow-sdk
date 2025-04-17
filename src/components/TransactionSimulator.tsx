@@ -44,6 +44,7 @@ const TransactionSimulator = () => {
 
   const simulateTransaction = () => {
     try {
+      // Create a transaction object
       const transaction: Transaction = {
         id: `TXN-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
         amount: parseFloat(amount),
@@ -55,6 +56,7 @@ const TransactionSimulator = () => {
       setCurrentTransaction(transaction);
       setIsBiometricVerified(false);
       setIsCallVerified(false);
+      setVerificationResult(null);
 
       // Check if biometric verification is required
       const bioType = SecurePaySDK.getBiometricType();
@@ -89,6 +91,12 @@ const TransactionSimulator = () => {
         title: "Call Verification Required",
         description: "This high-value transaction requires phone verification.",
         variant: "default",
+      });
+    } else if (result.requiresBiometricVerification) {
+      setShowBiometricVerification(true);
+      toast({
+        title: "Biometric Verification Required",
+        description: `Please complete ${biometricType === 'face' ? 'face recognition' : 'fingerprint'} verification.`,
       });
     } else {
       toast({
@@ -158,8 +166,29 @@ const TransactionSimulator = () => {
     setShowBiometricVerification(false);
     
     if (currentTransaction) {
-      // Now proceed with transaction verification
-      performVerification(currentTransaction);
+      // Set the transaction as verified with biometrics
+      const updatedResult = {
+        verified: true,
+        riskLevel: 'low',
+        reason: 'Biometric verification successful',
+        recommendation: 'Allow transaction',
+        requiresCallVerification: parseFloat(amount) >= 10000, // Still require call verification for high amounts
+      };
+      
+      setVerificationResult(updatedResult);
+      
+      // If high value transaction, still need phone verification
+      if (parseFloat(amount) >= 10000) {
+        toast({
+          title: "Call Verification Required",
+          description: "Biometric verification successful. High-value transaction still requires phone verification.",
+        });
+      } else {
+        toast({
+          title: "Transaction Verified",
+          description: "Biometric verification successful. Transaction approved.",
+        });
+      }
     }
   };
   

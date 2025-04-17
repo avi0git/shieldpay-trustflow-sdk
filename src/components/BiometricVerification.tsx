@@ -231,8 +231,6 @@ const BiometricVerification = ({ biometricType, onVerified, onCancel }: Biometri
     }
   };
   
-  // Demo verification - For demonstration purposes, we'll also add a button to simulate
-  // successful verification since we can't actually match the patterns in this demo
   const simulateSuccessfulVerification = () => {
     toast({
       title: "Demo Mode",

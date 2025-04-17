@@ -27,6 +27,7 @@ export class TrustedDeviceManager {
       phoneNumber: phoneNumber || '',
       biometricType: 'none',
       biometricData: null,
+      biometricVerified: false
     };
     
     // Save current device status
@@ -77,14 +78,9 @@ export class TrustedDeviceManager {
     // In a real implementation, this would use sophisticated biometric comparison algorithms
     // For this demo implementation, we'll simulate a successful match
     
-    // For a real implementation, we would compare:
-    // 1. For face recognition: facial features using techniques like eigenfaces or neural networks
-    // 2. For fingerprint: minutiae points and ridge patterns
-    
     console.log("Biometric data provided for verification");
     
-    // Since this is a demo, we'll just assume the verification is successful
-    // In a production system, this would use proper biometric matching
+    // For the demo, we'll just return true to simulate successful verification
     return true;
   }
   
@@ -247,7 +243,9 @@ export class TrustedDeviceManager {
     }
     
     const currentDevice = this.getCurrentDevice();
-    if (currentDevice?.biometricType !== 'none' && !currentDevice?.biometricVerified) {
+    
+    // If device has biometric capability but hasn't been verified for this transaction
+    if (currentDevice?.biometricType !== 'none') {
       return {
         verified: false,
         riskLevel: 'medium',
