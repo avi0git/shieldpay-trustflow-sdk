@@ -1,10 +1,11 @@
-
 /**
  * TrustedDeviceManager.ts
  * Manages the list of trusted devices and verifies transactions
  */
 import { DeviceFingerprint, DeviceInfo } from './DeviceFingerprint';
 import { QRCodeData } from './QRCodeManager';
+
+export type BiometricType = 'face' | 'fingerprint' | 'none';
 
 export class TrustedDeviceManager {
   private static readonly TRUSTED_DEVICES_KEY = 'trusted_devices';
@@ -24,6 +25,8 @@ export class TrustedDeviceManager {
       isCurrentDevice: true,
       lastVerified: new Date().toISOString(),
       phoneNumber: phoneNumber || '',
+      biometricType: 'none',
+      biometricData: null,
     };
     
     // Save current device status
@@ -33,6 +36,90 @@ export class TrustedDeviceManager {
     this.addTrustedDevice(trustedDevice);
     
     return trustedDevice;
+  }
+  
+  /**
+   * Register biometric for current device
+   */
+  public static registerBiometric(biometricData: string, type: BiometricType): boolean {
+    const currentDevice = this.getCurrentDevice();
+    if (!currentDevice) {
+      console.error("Cannot register biometric: No current device found");
+      return false;
+    }
+    
+    currentDevice.biometricType = type;
+    currentDevice.biometricData = biometricData;
+    
+    // Update device in storage
+    this.addTrustedDevice(currentDevice);
+    
+    return true;
+  }
+  
+  /**
+   * Verify biometric data against stored data
+   */
+  public static verifyBiometric(biometricData: string): boolean {
+    const currentDevice = this.getCurrentDevice();
+    if (!currentDevice || !currentDevice.biometricData) {
+      console.error("Cannot verify biometric: No biometric data found");
+      return false;
+    }
+    
+    // In a real implementation, this would use proper biometric comparison algorithms
+    // Here we do a simple string comparison for demo purposes
+    return currentDevice.biometricData === biometricData;
+  }
+  
+  /**
+   * Verify transaction with biometric authentication
+   */
+  public static verifyTransactionWithBiometric(transaction: Transaction, biometricData: string): TransactionVerificationResult {
+    const isTrustedDevice = this.isCurrentDeviceRegistered();
+    
+    if (!isTrustedDevice) {
+      return {
+        verified: false,
+        riskLevel: 'high',
+        reason: 'Untrusted device',
+        recommendation: 'Block transaction',
+        requiresCallVerification: false,
+      };
+    }
+    
+    // Check if biometric verification passed
+    const biometricVerified = this.verifyBiometric(biometricData);
+    if (!biometricVerified) {
+      return {
+        verified: false,
+        riskLevel: 'high',
+        reason: 'Biometric verification failed',
+        recommendation: 'Block transaction',
+        requiresCallVerification: false,
+      };
+    }
+    
+    // Check if this is a high-value transaction
+    const isHighValueTransaction = transaction.amount >= this.HIGH_VALUE_THRESHOLD;
+    
+    if (isHighValueTransaction) {
+      return {
+        verified: true, // Device is trusted, but amount requires additional verification
+        riskLevel: 'medium',
+        reason: 'High-value transaction requires additional verification',
+        recommendation: 'Verify via phone call',
+        requiresCallVerification: true,
+      };
+    }
+    
+    return {
+      verified: true,
+      riskLevel: 'low',
+      reason: 'Trusted device with verified biometrics',
+      recommendation: 'Allow transaction',
+      requiresCallVerification: false,
+    };
   }
   
   /**
@@ -143,6 +230,18 @@ export class TrustedDeviceManager {
       };
     }
     
+    const currentDevice = this.getCurrentDevice();
+    if (currentDevice?.biometricType !== 'none' && !currentDevice?.biometricVerified) {
+      return {
+        verified: false,
+        riskLevel: 'medium',
+        reason: 'Biometric verification required',
+        recommendation: 'Complete biometric verification',
+        requiresCallVerification: false,
+        requiresBiometricVerification: true,
+      };
+    }
+    
     // Check if this is a high-value transaction
     const isHighValueTransaction = transaction.amount >= this.HIGH_VALUE_THRESHOLD;
     
@@ -155,12 +254,6 @@ export class TrustedDeviceManager {
         requiresCallVerification: true,
       };
     }
-    
-    // In a real implementation, we would do additional verification based on:
-    // - Transaction frequency
-    // - Location
-    // - Time of day
-    // - User behavior patterns
     
     return {
       verified: true,
@@ -223,6 +316,9 @@ export interface TrustedDevice extends DeviceInfo {
   isCurrentDevice: boolean;
   lastVerified: string;
   phoneNumber?: string;
+  biometricType?: BiometricType;
+  biometricData?: string | null;
+  biometricVerified?: boolean;
 }
 
 export interface Transaction {
@@ -239,4 +335,5 @@ export interface TransactionVerificationResult {
   reason: string;
   recommendation: string;
   requiresCallVerification: boolean;
+  requiresBiometricVerification?: boolean;
 }

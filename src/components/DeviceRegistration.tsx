@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import SecurePaySDK from '@/sdk/SecurePaySDK';
-import { ShieldCheck, Smartphone, Phone } from 'lucide-react';
+import SecurePaySDK, { BiometricType } from '@/sdk/SecurePaySDK';
+import { ShieldCheck, Smartphone, Phone, Fingerprint } from 'lucide-react';
+import BiometricRegistration from './BiometricRegistration';
 
 const DeviceRegistration = () => {
   const { toast } = useToast();
@@ -14,6 +15,7 @@ const DeviceRegistration = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState<any>(null);
+  const [biometricType, setBiometricType] = useState<BiometricType | null>(null);
   
   // For phone number validation
   const [isValidPhoneNumber, setIsValidPhoneNumber] = useState(true);
@@ -28,11 +30,14 @@ const DeviceRegistration = () => {
     const info = SecurePaySDK.getDeviceInfo();
     setDeviceInfo(info);
     
-    // If registered, get saved phone number
+    // If registered, get saved phone number and biometric type
     if (registered) {
       const currentDevice = SecurePaySDK.getCurrentDevice();
       if (currentDevice?.phoneNumber) {
         setPhoneNumber(currentDevice.phoneNumber);
+      }
+      if (currentDevice?.biometricType) {
+        setBiometricType(currentDevice.biometricType);
       }
     }
   }, []);
@@ -81,6 +86,10 @@ const DeviceRegistration = () => {
     }
   };
 
+  const handleBiometricRegistered = (type: BiometricType) => {
+    setBiometricType(type);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -94,7 +103,7 @@ const DeviceRegistration = () => {
       </CardHeader>
       <CardContent>
         {isRegistered ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="bg-green-50 border border-green-200 rounded-md p-4 flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-green-600" />
               <div>
@@ -110,9 +119,20 @@ const DeviceRegistration = () => {
                 <span className="font-medium">{phoneNumber || 'No phone number registered'}</span>
               </div>
             </div>
+            
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Fingerprint className="h-4 w-4 text-primary" />
+                <Label>Biometric Authentication</Label>
+              </div>
+              <BiometricRegistration 
+                onRegistered={handleBiometricRegistered} 
+                showTitle={false}
+              />
+            </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
               <Label htmlFor="deviceInfo">Device Information</Label>
               <div className="mt-1 p-3 bg-gray-50 border rounded-md text-sm">
@@ -173,6 +193,7 @@ const DeviceRegistration = () => {
               SecurePaySDK.removeTrustedDevice(deviceInfo?.deviceId);
               setIsRegistered(false);
               setPhoneNumber('');
+              setBiometricType(null);
               toast({
                 title: "Device Removed",
                 description: "This device has been removed from trusted devices.",

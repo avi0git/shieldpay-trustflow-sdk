@@ -1,11 +1,10 @@
-
 /**
  * SecurePaySDK.ts
  * Main entry point for the fraud prevention SDK
  */
 import { DeviceFingerprint, DeviceInfo } from './DeviceFingerprint';
 import { QRCodeManager, QRCodeData } from './QRCodeManager';
-import { TrustedDeviceManager, TrustedDevice, Transaction, TransactionVerificationResult } from './TrustedDeviceManager';
+import { TrustedDeviceManager, TrustedDevice, Transaction, TransactionVerificationResult, BiometricType } from './TrustedDeviceManager';
 
 export class SecurePaySDK {
   /**
@@ -98,6 +97,43 @@ export class SecurePaySDK {
   public static verifyCode(code: string): boolean {
     return TrustedDeviceManager.verifyCode(code);
   }
+  
+  /**
+   * Register biometric for the current device
+   */
+  public static registerBiometric(biometricData: string, type: BiometricType): boolean {
+    return TrustedDeviceManager.registerBiometric(biometricData, type);
+  }
+  
+  /**
+   * Get biometric type for current device
+   */
+  public static getBiometricType(): BiometricType | null {
+    const device = TrustedDeviceManager.getCurrentDevice();
+    return device?.biometricType || null;
+  }
+  
+  /**
+   * Get stored biometric data for current device
+   */
+  public static getBiometricData(): string | null {
+    const device = TrustedDeviceManager.getCurrentDevice();
+    return device?.biometricData || null;
+  }
+  
+  /**
+   * Verify biometric data for transaction
+   */
+  public static verifyBiometric(biometricData: string): boolean {
+    return TrustedDeviceManager.verifyBiometric(biometricData);
+  }
+  
+  /**
+   * Verify transaction with biometric
+   */
+  public static verifyTransactionWithBiometric(transaction: Transaction, biometricData: string): TransactionVerificationResult {
+    return TrustedDeviceManager.verifyTransactionWithBiometric(transaction, biometricData);
+  }
 }
 
 // Re-export types for easier consumption
@@ -106,7 +142,8 @@ export type {
   QRCodeData,
   TrustedDevice,
   Transaction,
-  TransactionVerificationResult
+  TransactionVerificationResult,
+  BiometricType
 };
 
 // Export a default instance
