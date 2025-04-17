@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,24 +28,7 @@ const BiometricVerification = ({ biometricType, onVerified, onCancel }: Biometri
     if (biometricType === 'face') {
       startCamera();
     } else if (biometricType === 'fingerprint' && fingerprintCanvasRef.current) {
-      const canvas = fingerprintCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000';
-        
-        // Clear canvas
-        ctx.fillStyle = '#f3f4f6';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw instruction text
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Draw your fingerprint pattern here', canvas.width / 2, canvas.height / 2);
-      }
+      initializeFingerprintCanvas();
     }
     
     return () => {
@@ -54,20 +36,50 @@ const BiometricVerification = ({ biometricType, onVerified, onCancel }: Biometri
     };
   }, [biometricType]);
   
+  const initializeFingerprintCanvas = () => {
+    const canvas = fingerprintCanvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+    
+    // Clear canvas
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw instruction text
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Draw your fingerprint pattern here', canvas.width / 2, canvas.height / 2);
+  };
+  
   const startCamera = async () => {
-    if (videoRef.current && !isCameraOn) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    try {
+      if (!videoRef.current) {
+        console.error("Video element not found");
+        return;
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
+      });
+      
+      if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCameraOn(true);
-      } catch (err) {
-        console.error("Error accessing camera:", err);
-        toast({
-          variant: "destructive",
-          title: "Camera Error",
-          description: "Could not access the camera. Please check permissions.",
-        });
       }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      toast({
+        variant: "destructive",
+        title: "Camera Error",
+        description: "Could not access the camera. Please check permissions.",
+      });
     }
   };
   
@@ -86,41 +98,49 @@ const BiometricVerification = ({ biometricType, onVerified, onCancel }: Biometri
   };
   
   const verifyFace = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Get image data as base64 string
-        const imageData = canvas.toDataURL('image/png');
-        
-        // In a real implementation, this would use facial recognition algorithms
-        // For this demo, we'll simulate by comparing to stored data
-        const isVerified = SecurePaySDK.verifyBiometric(imageData);
-        
-        if (isVerified) {
-          stopCamera();
-          toast({
-            title: "Face Verified",
-            description: "Face verification successful.",
-          });
-          onVerified();
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Verification Failed",
-            description: "Face does not match. Please try again.",
-          });
-        }
-      }
+    if (!videoRef.current || !canvasRef.current) {
+      console.error("Video or canvas element not found");
+      return;
+    }
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      console.error("Could not get canvas context");
+      return;
+    }
+    
+    // Make sure we have proper dimensions
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw video frame to canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Get image data as base64 string
+    const imageData = canvas.toDataURL('image/png');
+    
+    console.log("Captured image data length:", imageData.length);
+    console.log("Stored biometric data length:", storedBiometricData?.length);
+    
+    // Verify with SDK
+    const isVerified = SecurePaySDK.verifyBiometric(imageData);
+    
+    if (isVerified) {
+      stopCamera();
+      toast({
+        title: "Face Verified",
+        description: "Face verification successful.",
+      });
+      onVerified();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Verification Failed",
+        description: "Face does not match. Please try again.",
+      });
     }
   };
   
@@ -235,6 +255,11 @@ const BiometricVerification = ({ biometricType, onVerified, onCancel }: Biometri
         {biometricType === 'face' && (
           <div className="space-y-4">
             <div className="rounded-md overflow-hidden bg-gray-100 relative">
+              {!isCameraOn && (
+                <div className="w-full h-[200px] flex items-center justify-center">
+                  <p className="text-gray-500">Starting camera...</p>
+                </div>
+              )}
               <video
                 ref={videoRef}
                 autoPlay

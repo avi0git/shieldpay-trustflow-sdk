@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +30,16 @@ const BiometricRegistration = ({ onRegistered, showTitle = true }: BiometricRegi
     if (type && type !== 'none') {
       setBiometricType(type);
       setIsRegistered(true);
+      
+      // If we have a stored face image, load it
+      const biometricData = SecurePaySDK.getBiometricData();
+      if (biometricData) {
+        if (type === 'face') {
+          setCapturedImage(biometricData);
+        } else if (type === 'fingerprint') {
+          setFingerprintData(biometricData);
+        }
+      }
     }
   }, []);
   
@@ -50,41 +59,54 @@ const BiometricRegistration = ({ onRegistered, showTitle = true }: BiometricRegi
   // Setup fingerprint canvas
   useEffect(() => {
     if (biometricType === 'fingerprint' && !isRegistered && fingerprintCanvasRef.current) {
-      const canvas = fingerprintCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000';
-        
-        // Clear canvas
-        ctx.fillStyle = '#f3f4f6';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw instruction text
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Draw your fingerprint pattern here', canvas.width / 2, canvas.height / 2);
-      }
+      initializeFingerprintCanvas();
     }
-  }, [biometricType, isRegistered, fingerprintCanvasRef]);
+  }, [biometricType, isRegistered]);
+  
+  const initializeFingerprintCanvas = () => {
+    const canvas = fingerprintCanvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+    
+    // Clear canvas
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw instruction text
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Draw your fingerprint pattern here', canvas.width / 2, canvas.height / 2);
+  };
   
   const startCamera = async () => {
-    if (videoRef.current && !isCameraOn) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    try {
+      if (!videoRef.current) {
+        console.error("Video element not found");
+        return;
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } } 
+      });
+      
+      if (videoRef.current) {
         videoRef.current.srcObject = stream;
         setIsCameraOn(true);
-      } catch (err) {
-        console.error("Error accessing camera:", err);
-        toast({
-          variant: "destructive",
-          title: "Camera Error",
-          description: "Could not access the camera. Please check permissions.",
-        });
       }
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      toast({
+        variant: "destructive",
+        title: "Camera Error",
+        description: "Could not access the camera. Please check permissions.",
+      });
     }
   };
   
@@ -103,36 +125,44 @@ const BiometricRegistration = ({ onRegistered, showTitle = true }: BiometricRegi
   };
   
   const captureFace = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Draw video frame to canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Get image data as base64 string
-        const imageData = canvas.toDataURL('image/png');
-        setCapturedImage(imageData);
-        
-        // Register biometric with the SDK
-        const success = SecurePaySDK.registerBiometric(imageData, 'face');
-        
-        if (success) {
-          setIsRegistered(true);
-          stopCamera();
-          toast({
-            title: "Face Registered",
-            description: "Your face has been registered successfully.",
-          });
-          if (onRegistered) onRegistered('face');
-        }
-      }
+    if (!videoRef.current || !canvasRef.current) {
+      console.error("Video or canvas element not found");
+      return;
+    }
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      console.error("Could not get canvas context");
+      return;
+    }
+    
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw video frame to canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Get image data as base64 string
+    const imageData = canvas.toDataURL('image/png');
+    console.log("Captured image data length:", imageData.length);
+    
+    setCapturedImage(imageData);
+    
+    // Register biometric with the SDK
+    const success = SecurePaySDK.registerBiometric(imageData, 'face');
+    
+    if (success) {
+      setIsRegistered(true);
+      stopCamera();
+      toast({
+        title: "Face Registered",
+        description: "Your face has been registered successfully.",
+      });
+      if (onRegistered) onRegistered('face');
     }
   };
   
@@ -263,6 +293,11 @@ const BiometricRegistration = ({ onRegistered, showTitle = true }: BiometricRegi
             {biometricType === 'face' && (
               <div className="space-y-4">
                 <div className="rounded-md overflow-hidden bg-gray-100 relative">
+                  {!isCameraOn && (
+                    <div className="w-full h-[200px] flex items-center justify-center">
+                      <p className="text-gray-500">Starting camera...</p>
+                    </div>
+                  )}
                   <video
                     ref={videoRef}
                     autoPlay
@@ -322,7 +357,7 @@ const BiometricRegistration = ({ onRegistered, showTitle = true }: BiometricRegi
                 <img
                   src={capturedImage}
                   alt="Registered face"
-                  className="w-full h-[150px] object-cover"
+                  className="w-full h-[150px] object-contain"
                 />
               </div>
             )}

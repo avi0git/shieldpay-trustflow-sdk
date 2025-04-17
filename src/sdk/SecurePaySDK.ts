@@ -102,6 +102,7 @@ export class SecurePaySDK {
    * Register biometric for the current device
    */
   public static registerBiometric(biometricData: string, type: BiometricType): boolean {
+    console.log(`[SecurePaySDK] Registering biometric: ${type}`);
     return TrustedDeviceManager.registerBiometric(biometricData, type);
   }
   
@@ -110,6 +111,7 @@ export class SecurePaySDK {
    */
   public static getBiometricType(): BiometricType | null {
     const device = TrustedDeviceManager.getCurrentDevice();
+    console.log(`[SecurePaySDK] Getting biometric type: ${device?.biometricType || 'null'}`);
     return device?.biometricType || null;
   }
   
@@ -118,6 +120,7 @@ export class SecurePaySDK {
    */
   public static getBiometricData(): string | null {
     const device = TrustedDeviceManager.getCurrentDevice();
+    console.log(`[SecurePaySDK] Getting biometric data, exists: ${!!device?.biometricData}`);
     return device?.biometricData || null;
   }
   
@@ -125,6 +128,7 @@ export class SecurePaySDK {
    * Verify biometric data for transaction
    */
   public static verifyBiometric(biometricData: string): boolean {
+    console.log(`[SecurePaySDK] Verifying biometric data`);
     return TrustedDeviceManager.verifyBiometric(biometricData);
   }
   
